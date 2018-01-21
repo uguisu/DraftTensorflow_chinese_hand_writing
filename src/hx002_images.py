@@ -37,12 +37,13 @@ logger.addHandler(ch)
 # =====================================
 tf.app.flags.DEFINE_boolean('isDebug',  True, 'debug flag')
 
-tf.app.flags.DEFINE_string('checkpoint_dir', '../../data/checkpoint/', 'the checkpoint dir')
-tf.app.flags.DEFINE_string('train_data_dir', '../../data/train/', 'the train dataset dir')
-tf.app.flags.DEFINE_string('test_data_dir',  '../../data/test/', 'the test dataset dir')
+tf.app.flags.DEFINE_string('checkpoint_dir', '../data/checkpoint/', 'the checkpoint dir')
+tf.app.flags.DEFINE_string('train_data_dir', '../data/train/', 'the train dataset dir')
+tf.app.flags.DEFINE_string('test_data_dir',  '../data/test/', 'the test dataset dir')
 tf.app.flags.DEFINE_integer('epoch', 1, 'epoch')
 tf.app.flags.DEFINE_integer('channels', 1, 'color channels')
 tf.app.flags.DEFINE_integer('image_size', 64, 'image size')
+tf.app.flags.DEFINE_integer('batch_size', 128, 'batch size')
 
 
 FLAGS = tf.app.flags.FLAGS
@@ -50,7 +51,6 @@ FLAGS = tf.app.flags.FLAGS
 # =====================================
 # ======   Declare variables     ======
 # =====================================
-a = 1  # TODO
 
 
 # Get data file list
@@ -83,21 +83,35 @@ def read_data_from_file(image_file_list,
     image_tensor = tf.convert_to_tensor(image_file_list, dtype=tf.string)
     label_tensor = tf.convert_to_tensor(label_list, tf.int64)
 
+    # Refer: https://tensorflow.google.cn/api_docs/python/tf/train/slice_input_producer
+    all_matrix_tensor = tf.train.slice_input_producer([image_tensor, label_tensor],
+                                                      num_epochs=FLAGS.epoch,
+                                                      shuffle=False)
+
     # read file as binary
-    image_tensor = tf.read_file(image_tensor)
+    image_tensor = tf.read_file(all_matrix_tensor[0])
     # decode png images
     image_tensor = tf.image.decode_png(image_tensor,
                                        channels=FLAGS.channels)
 
     # resize to same size
     image_tensor = tf.image.convert_image_dtype(image_tensor, tf.float32)
-    new_size = tf.constant([FLAGS.image_size, FLAGS.image_size], dtype=tf.float32)
+    # [NOTICE] If dtype=tf.float32, you will got following error:
+    #     ValueError: 'size' must be a 1-D int32 Tensor
+    new_size = tf.constant([FLAGS.image_size, FLAGS.image_size], dtype=tf.int32)
     image_tensor = tf.image.resize_images(image_tensor, new_size)
 
-    # Refer: https://tensorflow.google.cn/api_docs/python/tf/train/slice_input_producer
-    all_matrix_tensor = tf.train.slice_input_producer([image_tensor, label_tensor],
-                                                      num_epochs=FLAGS.epoch,
-                                                      shuffle=False)
+    label_tensor = all_matrix_tensor[1]
+
+    image_batch, label_batch = tf.train.shuffle_batch([image_tensor, label_tensor],
+                                                      batch_size=FLAGS.batch_size,
+                                                      capacity=50000,
+                                                      min_after_dequeue=10000)
+    # Debug
+    if FLAGS.isDebug:
+        logger.debug(image_batch)
+
+    return image_batch, label_batch
 
 
 # Train
@@ -112,6 +126,12 @@ def train():
         for i in range(len(test_label)):
             logger.debug(str.format("Test  data: %d : %s") % (test_label[i], test_image[i]))
 
+    train_image_batch, train_label_batch = read_data_from_file(train_image, train_label)
+    test_image_batch, test_label_batch = read_data_from_file(test_image, test_label)
+
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
+
 
 # Output default information
 def output_default_info():
@@ -121,7 +141,8 @@ def output_default_info():
     logger.info("\tTensorflow version: " + tf.__version__)
     logger.info("\tepoch             : " + str(FLAGS.epoch))
     logger.info("\tchannels          : " + str(FLAGS.channels))
-    logger.info("\timage_size        : " + str(FLAGS.image_size))
+    logger.info("\timage size        : " + str(FLAGS.image_size))
+    logger.info("\tbatch size        : " + str(FLAGS.batch_size))
 
 
 if __name__ == "__main__":
@@ -130,4 +151,3 @@ if __name__ == "__main__":
     output_default_info()
     # start training
     train()
-
