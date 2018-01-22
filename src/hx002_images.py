@@ -44,6 +44,7 @@ tf.app.flags.DEFINE_integer('epoch', 1, 'epoch')
 tf.app.flags.DEFINE_integer('channels', 1, 'color channels')
 tf.app.flags.DEFINE_integer('image_size', 64, 'image size')
 tf.app.flags.DEFINE_integer('batch_size', 128, 'batch size')
+tf.app.flags.DEFINE_integer('gpu_model', 0, 'gpu model')
 
 
 FLAGS = tf.app.flags.FLAGS
@@ -129,8 +130,21 @@ def train():
     train_image_batch, train_label_batch = read_data_from_file(train_image, train_label)
     test_image_batch, test_label_batch = read_data_from_file(test_image, test_label)
 
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
+    # GPU settings
+    # Refer: https://stackoverflow.com/questions/34199233/how-to-prevent-tensorflow-from-allocating-the-totality-of-a-gpu-memory
+    config = tf.ConfigProto()
+    if FLAGS.gpu_model == 1:
+        # 1) Allow growth: (more flexible)
+        config.gpu_options.allow_growth = True
+    elif FLAGS.gpu_model == 2:
+        # 2) Allocate fixed memory:
+        config.gpu_options.per_process_gpu_memory_fraction = 0.7
+    else:
+        # 3) Do not use GPU
+        config = None
+
+    with tf.Session(config=config) as sess:
+        sess.run(tf.global_variables_initializer())
 
 
 # Output default information
@@ -143,6 +157,7 @@ def output_default_info():
     logger.info("\tchannels          : " + str(FLAGS.channels))
     logger.info("\timage size        : " + str(FLAGS.image_size))
     logger.info("\tbatch size        : " + str(FLAGS.batch_size))
+    logger.info("\tgpu model         : " + str(FLAGS.gpu_model))
 
 
 if __name__ == "__main__":
