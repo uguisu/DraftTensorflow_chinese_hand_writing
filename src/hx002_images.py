@@ -9,6 +9,7 @@
 import os
 import logging
 import datetime
+import random
 import tensorflow as tf
 
 # ====================================
@@ -40,18 +41,22 @@ tf.app.flags.DEFINE_boolean('isDebug',  True, 'debug flag')
 tf.app.flags.DEFINE_string('checkpoint_dir', '../data/checkpoint/', 'the checkpoint dir')
 tf.app.flags.DEFINE_string('train_data_dir', '../data/train/', 'the train dataset dir')
 tf.app.flags.DEFINE_string('test_data_dir',  '../data/test/', 'the test dataset dir')
-tf.app.flags.DEFINE_integer('epoch', 1, 'epoch')
-tf.app.flags.DEFINE_integer('channels', 1, 'color channels')
-tf.app.flags.DEFINE_integer('image_size', 64, 'image size')
-tf.app.flags.DEFINE_integer('batch_size', 128, 'batch size')
-tf.app.flags.DEFINE_integer('gpu_model', 0, 'gpu model')
-
+tf.app.flags.DEFINE_integer('epoch',               1, 'epoch')
+tf.app.flags.DEFINE_integer('channels',            1, 'color channels')
+tf.app.flags.DEFINE_integer('image_size',         64, 'image size')
+tf.app.flags.DEFINE_integer('batch_size',        128, 'batch size')
+tf.app.flags.DEFINE_integer('gpu_model',           0, 'gpu model')
+# tf.app.flags.DEFINE_integer('total_characters', 3754, 'total characters')
+tf.app.flags.DEFINE_integer('total_characters',    3, 'total characters')
 
 FLAGS = tf.app.flags.FLAGS
 
 # =====================================
 # ======   Declare variables     ======
 # =====================================
+global_random_range = []
+
+X = tf.placeholder(tf.int32, [FLAGS.total_characters, FLAGS.image_size, FLAGS.image_size, FLAGS.channels])
 
 
 # Get data file list
@@ -59,21 +64,52 @@ FLAGS = tf.app.flags.FLAGS
 #     train_dir: data storage path
 #     validation_size: "-1": unlimited, any value grater than zero: limitation size
 def get_data_file_list(train_dir='../data',
-                    validation_size=-1):
+                       validation_size=-1):
     # image file list
     images_list = []
     # label list
     label_list = []
 
-    # loop all files under target path
-    for root, sub_folder, file_list in os.walk(train_dir):
-        images_list += [os.path.join(root, file_path) for file_path in file_list]
-    label_list += [int(file_name[len(train_dir):].split(os.sep)[0]) for file_name in images_list]
-
     # verify limitation
+    #     If user setup 'validation_size' property, the following program will choice some data from 'train_dir'
+    #     randomly.
+    #     Otherwise, the whole dataset, declared by FLAGS.total_characters will be target.
     if validation_size > 0:
-        images_list = images_list[:validation_size]
-        label_list = label_list[:validation_size]
+
+        global global_random_range
+
+        # random range
+        random_range = []
+
+        if len(global_random_range) == 0:
+
+            for i in range(validation_size):
+                # got a random value
+                _tmp_random = random.SystemRandom().randrange(0, FLAGS.total_characters)
+                while _tmp_random in random_range:
+                    # already exists, got a new one
+                    _tmp_random = random.SystemRandom().randrange(0, FLAGS.total_characters)
+
+                # attach it to the list
+                random_range.append(_tmp_random)
+
+            # update global variable
+            global_random_range = random_range
+        else:
+            random_range = global_random_range
+
+        for _tmp_random in random_range:
+            sub_folder_name = "{:0>4}".format(str(_tmp_random))
+            for file_list in os.listdir(train_dir + sub_folder_name):
+                images_list.append(train_dir + sub_folder_name + '/' + file_list)
+                label_list.append(_tmp_random)
+    else:
+        # use all data
+        for _tmp_random in range(FLAGS.total_characters):
+            sub_folder_name = "{:0>4}".format(str(_tmp_random))
+            for file_list in os.listdir(train_dir + sub_folder_name):
+                images_list.append(train_dir + sub_folder_name + '/' + file_list)
+                label_list.append(_tmp_random)
 
     return images_list, label_list
 
@@ -117,8 +153,14 @@ def read_data_from_file(image_file_list,
 
 # Train
 def train():
-    train_image, train_label = get_data_file_list(FLAGS.train_data_dir)
-    test_image, test_label = get_data_file_list(FLAGS.test_data_dir)
+
+    # Debug
+    if FLAGS.isDebug:
+        train_image, train_label = get_data_file_list(FLAGS.train_data_dir, validation_size=2)
+        test_image, test_label = get_data_file_list(FLAGS.test_data_dir, validation_size=2)
+    else:
+        train_image, train_label = get_data_file_list(FLAGS.train_data_dir)
+        test_image, test_label = get_data_file_list(FLAGS.test_data_dir)
 
     # Debug
     if FLAGS.isDebug:
@@ -158,6 +200,7 @@ def output_default_info():
     logger.info("\timage size        : " + str(FLAGS.image_size))
     logger.info("\tbatch size        : " + str(FLAGS.batch_size))
     logger.info("\tgpu model         : " + str(FLAGS.gpu_model))
+    logger.info("\ttotal characters  : " + str(FLAGS.total_characters))
 
 
 if __name__ == "__main__":
