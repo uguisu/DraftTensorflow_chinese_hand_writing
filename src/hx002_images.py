@@ -48,6 +48,7 @@ tf.app.flags.DEFINE_integer('batch_size',        128, 'batch size')
 tf.app.flags.DEFINE_integer('gpu_model',           0, 'gpu model')
 # tf.app.flags.DEFINE_integer('total_characters', 3754, 'total characters')
 tf.app.flags.DEFINE_integer('total_characters',    3, 'total characters')
+tf.app.flags.DEFINE_float('learn_rate',    0.1, 'learn rate')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -56,8 +57,22 @@ FLAGS = tf.app.flags.FLAGS
 # =====================================
 global_random_range = []
 
-X = tf.placeholder(tf.int32, [FLAGS.total_characters, FLAGS.image_size, FLAGS.image_size, FLAGS.channels])
+K = 4  # first convolutional layer output depth
 
+# input X: 64 x 64 grayscale images, the first dimension (None) will index the images in the mini-batch
+#          [batch, in_height, in_width, in_channels]
+X = tf.placeholder(tf.float32, [None, FLAGS.image_size, FLAGS.image_size, FLAGS.channels])
+# correct answers will go here
+Y_ = tf.placeholder(tf.float32, [None, 10])
+
+# filter W1 : 2 x 2 patch, 1 input channel, K output channels
+#             [filter_height, filter_width, in_channels, out_channels]
+W1 = tf.Variable(tf.truncated_normal([2, 2, FLAGS.channels, K], stddev=0.1))
+B1 = tf.Variable(tf.ones([K])/10)
+
+W4 = tf.Variable(tf.truncated_normal([64 * 64 * K, K], stddev=0.1))
+W5 = tf.Variable(tf.truncated_normal([K, 10], stddev=0.1))
+B5 = tf.Variable(tf.ones([10])/10)
 
 # Get data file list
 # Image file and label will be returned as list
@@ -151,6 +166,35 @@ def read_data_from_file(image_file_list,
     return image_batch, label_batch
 
 
+def model_network():
+
+    # tf.nn.conv2d()        -> https://tensorflow.google.cn/api_docs/python/tf/nn/conv2d
+    # tf.truncated_normal() -> https://tensorflow.google.cn/api_docs/python/tf/truncated_normal
+
+    stride = 1 # output is 64x64
+    conv1 = tf.nn.conv2d(X, W1, strides=[1, stride, stride, 1], padding='SAME')
+    relu1 = tf.nn.relu(conv1 + B1)
+
+    # reshape the output from the third convolution for the fully connected layer
+    YY = tf.reshape(relu1, shape=[-1, 64 * 64 * K])
+
+    relu2 = tf.nn.relu(tf.matmul(YY, W4) + B1)
+    Ylogits = tf.matmul(relu2, W5) + B5
+    Y = tf.nn.softmax(Ylogits)
+
+    # cross-entropy loss function (= -sum(Y_i * log(Yi)) ), normalised for batches of 100  images
+    # TensorFlow provides the softmax_cross_entropy_with_logits function to avoid numerical stability
+    # problems with log(0) which is NaN
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=Ylogits, labels=Y_)
+    cross_entropy = tf.reduce_mean(cross_entropy)*100
+
+    # accuracy of the trained model, between 0 (worst) and 1 (best)
+    correct_prediction = tf.equal(tf.argmax(Y, 1), tf.argmax(Y_, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    # training step, the learning rate is a placeholder
+    train_step = tf.train.AdamOptimizer(FLAGS.learn_rate).minimize(cross_entropy)
+
 # Train
 def train():
 
@@ -187,6 +231,12 @@ def train():
 
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
+        coord = tf.train.Coordinator()
+
+        # https://tensorflow.google.cn/api_docs/python/tf/train/start_queue_runners
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
+        coord.join(threads)
 
 
 # Output default information
@@ -201,6 +251,7 @@ def output_default_info():
     logger.info("\tbatch size        : " + str(FLAGS.batch_size))
     logger.info("\tgpu model         : " + str(FLAGS.gpu_model))
     logger.info("\ttotal characters  : " + str(FLAGS.total_characters))
+    logger.info("\tlearn rate        : " + str(FLAGS.learn_rate))
 
 
 if __name__ == "__main__":
