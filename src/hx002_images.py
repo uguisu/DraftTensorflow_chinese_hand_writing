@@ -18,7 +18,7 @@ import tensorflow as tf
 logger = logging.getLogger('[Learn Tensorflow] Chinese hand writing')
 logger.setLevel(logging.DEBUG)
 
-logfile = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '.log'
+logfile = datetime.datetime.now().strftime('%Y-%m-%d %H%M%S') + '.log'
 
 fh = logging.FileHandler(logfile, mode='w')
 fh.setLevel(logging.DEBUG)
