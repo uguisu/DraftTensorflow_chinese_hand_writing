@@ -57,7 +57,8 @@ FLAGS = tf.app.flags.FLAGS
 # =====================================
 global_random_range = []
 
-K = 4  # first convolutional layer output depth
+K = 32  # 1 convolutional layer output depth
+L = 64  # 2 convolutional layer output depth
 
 # input X: 64 x 64 grayscale images, the first dimension (None) will index the images in the mini-batch
 #          [batch, in_height, in_width, in_channels]
@@ -68,7 +69,11 @@ Y_ = tf.placeholder(tf.float32, [None, 10])
 # filter W1 : 2 x 2 patch, 1 input channel, K output channels
 #             [filter_height, filter_width, in_channels, out_channels]
 W1 = tf.Variable(tf.truncated_normal([2, 2, FLAGS.channels, K], stddev=0.1))
-B1 = tf.Variable(tf.ones([K])/10)
+B1 = tf.Variable(tf.random_normal([K], stddev=0.1))
+# filter W2 : 2 x 2 patch, K input channel, L output channels
+#             [filter_height, filter_width, in_channels, out_channels]
+W2 = tf.Variable(tf.truncated_normal([2, 2, K, L], stddev=0.1))
+B2 = tf.Variable(tf.random_normal([L], stddev=0.1))
 
 W4 = tf.Variable(tf.truncated_normal([64 * 64 * K, K], stddev=0.1))
 W5 = tf.Variable(tf.truncated_normal([K, 10], stddev=0.1))
@@ -169,16 +174,28 @@ def read_data_from_file(image_file_list,
 def model_network():
 
     # tf.nn.conv2d()        -> https://tensorflow.google.cn/api_docs/python/tf/nn/conv2d
+    # tf.nn.bias_add()      -> https://tensorflow.google.cn/api_docs/python/tf/nn/bias_add
     # tf.truncated_normal() -> https://tensorflow.google.cn/api_docs/python/tf/truncated_normal
+    # tf.random_normal()    -> https://tensorflow.google.cn/api_docs/python/tf/random_normal
 
     stride = 1 # output is 64x64
     conv1 = tf.nn.conv2d(X, W1, strides=[1, stride, stride, 1], padding='SAME')
-    relu1 = tf.nn.relu(conv1 + B1)
+    bias1 = tf.nn.bias_add(conv1, B1)
+    relu1 = tf.nn.relu(bias1)
+    pool1 = tf.nn.max_pool(relu1, [2, 2], strides=[1, stride, stride, 1], padding='SAME')
+
+    stride = 1 # output is 32x32
+    conv2 = tf.nn.conv2d(pool1, W2, strides=[1, stride, stride, 1], padding='SAME')
+    bias2 = tf.nn.bias_add(conv2, B2)
+    relu2 = tf.nn.relu(bias2)
+    pool2 = tf.nn.max_pool(relu2, [2, 2], strides=[1, stride, stride, 1], padding='SAME')
 
     # reshape the output from the third convolution for the fully connected layer
-    YY = tf.reshape(relu1, shape=[-1, 64 * 64 * K])
+    pool2_flat = tf.reshape(relu1, shape=[-1, 32 * 32 * L])
 
-    relu2 = tf.nn.relu(tf.matmul(YY, W4) + B1)
+
+
+    relu2 = tf.nn.relu(tf.matmul(pool2_flat, W4) + B1)
     Ylogits = tf.matmul(relu2, W5) + B5
     Y = tf.nn.softmax(Ylogits)
 
