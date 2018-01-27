@@ -48,7 +48,7 @@ tf.app.flags.DEFINE_integer('batch_size',        128, 'batch size')
 tf.app.flags.DEFINE_integer('gpu_model',           0, 'gpu model')
 # tf.app.flags.DEFINE_integer('total_characters', 3754, 'total characters')
 tf.app.flags.DEFINE_integer('total_characters',    3, 'total characters')
-tf.app.flags.DEFINE_float('learn_rate',    0.1, 'learn rate')
+tf.app.flags.DEFINE_float('learn_rate',          0.1, 'learn rate')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -57,8 +57,8 @@ FLAGS = tf.app.flags.FLAGS
 # =====================================
 global_random_range = []
 
-K = 32  # 1 convolutional layer output depth
-L = 64  # 2 convolutional layer output depth
+K = 32    # 1 convolutional layer output depth
+L = 64    # 2 convolutional layer output depth
 
 # input X: 64 x 64 grayscale images, the first dimension (None) will index the images in the mini-batch
 #          [batch, in_height, in_width, in_channels]
@@ -178,18 +178,25 @@ def model_network():
     # tf.truncated_normal() -> https://tensorflow.google.cn/api_docs/python/tf/truncated_normal
     # tf.random_normal()    -> https://tensorflow.google.cn/api_docs/python/tf/random_normal
 
-    stride = 1 # output is 64x64
+    # Convolutional Layer #1
+    stride = 1  # output is 64x64
     conv1 = tf.nn.conv2d(X, W1, strides=[1, stride, stride, 1], padding='SAME')
     bias1 = tf.nn.bias_add(conv1, B1)
     relu1 = tf.nn.relu(bias1)
+
+    # Pooling Layer #1
     pool1 = tf.nn.max_pool(relu1, [2, 2], strides=[1, stride, stride, 1], padding='SAME')
 
-    stride = 1 # output is 32x32
+    # Convolutional Layer #2
+    stride = 1  # output is 32x32
     conv2 = tf.nn.conv2d(pool1, W2, strides=[1, stride, stride, 1], padding='SAME')
     bias2 = tf.nn.bias_add(conv2, B2)
     relu2 = tf.nn.relu(bias2)
+
+    # Pooling Layer #2
     pool2 = tf.nn.max_pool(relu2, [2, 2], strides=[1, stride, stride, 1], padding='SAME')
 
+    # Full Layer
     # reshape the output from the third convolution for the fully connected layer
     pool2_flat = tf.reshape(relu1, shape=[-1, 32 * 32 * L])
 
@@ -211,6 +218,7 @@ def model_network():
 
     # training step, the learning rate is a placeholder
     train_step = tf.train.AdamOptimizer(FLAGS.learn_rate).minimize(cross_entropy)
+
 
 # Train
 def train():
