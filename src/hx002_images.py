@@ -49,6 +49,7 @@ tf.app.flags.DEFINE_integer('gpu_model',           0, 'gpu model')
 # tf.app.flags.DEFINE_integer('total_characters', 3754, 'total characters')
 tf.app.flags.DEFINE_integer('total_characters',    3, 'total characters')
 tf.app.flags.DEFINE_float('learn_rate',          0.1, 'learn rate')
+tf.app.flags.DEFINE_float('drop_keep',          0.75, 'drop keep')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -65,6 +66,8 @@ L = 64    # 2 convolutional layer output depth
 X = tf.placeholder(tf.float32, [None, FLAGS.image_size, FLAGS.image_size, FLAGS.channels])
 # correct answers will go here
 Y_ = tf.placeholder(tf.float32, [None, 10])
+# The probability that each element is kept.
+pkeep = tf.placeholder(tf.float32)
 
 # filter W1 : 2 x 2 patch, 1 input channel, K output channels
 #             [filter_height, filter_width, in_channels, out_channels]
@@ -277,6 +280,7 @@ def output_default_info():
     logger.info("\tgpu model         : " + str(FLAGS.gpu_model))
     logger.info("\ttotal characters  : " + str(FLAGS.total_characters))
     logger.info("\tlearn rate        : " + str(FLAGS.learn_rate))
+    logger.info("\tdrop keep         : " + str(FLAGS.drop_keep))
 
 
 if __name__ == "__main__":
