@@ -60,6 +60,8 @@ global_random_range = []
 
 K = 32    # 1 convolutional layer output depth
 L = 64    # 2 convolutional layer output depth
+M = 1024  # full connection layer
+N = FLAGS.total_characters  # full connection layer
 
 # input X: 64 x 64 grayscale images, the first dimension (None) will index the images in the mini-batch
 #          [batch, in_height, in_width, in_channels]
@@ -78,9 +80,12 @@ B1 = tf.Variable(tf.random_normal([K], stddev=0.1))
 W2 = tf.Variable(tf.truncated_normal([2, 2, K, L], stddev=0.1))
 B2 = tf.Variable(tf.random_normal([L], stddev=0.1))
 
-W4 = tf.Variable(tf.truncated_normal([64 * 64 * K, K], stddev=0.1))
-W5 = tf.Variable(tf.truncated_normal([K, 10], stddev=0.1))
-B5 = tf.Variable(tf.ones([10])/10)
+W3 = tf.Variable(tf.truncated_normal([32 * 32 * L, M], stddev=0.1))
+B3 = tf.Variable(tf.zeros([M]))
+
+W4 = tf.Variable(tf.truncated_normal([M, N], stddev=0.1))
+B4 = tf.Variable(tf.zeros([N]))
+
 
 # Get data file list
 # Image file and label will be returned as list
@@ -202,11 +207,14 @@ def model_network():
     # Full Layer
     # reshape the output from the third convolution for the fully connected layer
     pool2_flat = tf.reshape(relu1, shape=[-1, 32 * 32 * L])
+    # TODO
+    # dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
+    fc1 = tf.matmul(pool2_flat, W3) + B3
+    relu3 = tf.nn.relu(fc1)
+    dropout1 = tf.nn.dropout(relu3, pkeep)
 
-
-
-    relu2 = tf.nn.relu(tf.matmul(pool2_flat, W4) + B1)
-    Ylogits = tf.matmul(relu2, W5) + B5
+    # Logits Layer
+    Ylogits = tf.matmul(dropout1, W4) + B4
     Y = tf.nn.softmax(Ylogits)
 
     # cross-entropy loss function (= -sum(Y_i * log(Yi)) ), normalised for batches of 100  images
