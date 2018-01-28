@@ -219,6 +219,8 @@ def model_network():
     y = tf.nn.softmax(ylogits)
 
     # cross-entropy loss function (= -sum(Y_i * log(Yi)) ), normalised for batches of 100  images
+    # TODO: Got following exception:
+    #     ValueError: Rank mismatch: Rank of labels (received 2) should equal rank of logits minus 1 (received 2).
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y, labels=Y_)
     loss = tf.reduce_mean(loss)*100
 
