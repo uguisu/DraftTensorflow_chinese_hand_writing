@@ -195,9 +195,8 @@ def model_network():
     relu1 = tf.nn.relu(bias1)
 
     # Pooling Layer #1
-    # TODO: Got following error:
-    #     ValueError: Attr 'ksize' of 'MaxPool' Op passed list of length 2 less than minimum 4.
-    pool1 = tf.nn.max_pool(relu1, [2, 2], strides=[1, stride, stride, 1], padding='SAME')
+    # [NOTICE] ksize: A 1-D int Tensor of 4 elements.
+    pool1 = tf.nn.max_pool(relu1, ksize=[1, 2, 2, 1], strides=[1, stride, stride, 1], padding='SAME')
 
     # Convolutional Layer #2
     stride = 1  # output is 32x32
@@ -206,7 +205,7 @@ def model_network():
     relu2 = tf.nn.relu(bias2)
 
     # Pooling Layer #2
-    pool2 = tf.nn.max_pool(relu2, [2, 2], strides=[1, stride, stride, 1], padding='SAME')
+    pool2 = tf.nn.max_pool(relu2, ksize=[1, 2, 2, 1], strides=[1, stride, stride, 1], padding='SAME')
 
     # Full Layer
     # reshape the output from the third convolution for the fully connected layer
