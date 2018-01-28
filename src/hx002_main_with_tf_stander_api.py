@@ -37,7 +37,7 @@ logger.addHandler(ch)
 # =====================================
 # ======   Declare const value   ======
 # =====================================
-tf.app.flags.DEFINE_boolean('isDebug',  True, 'debug flag')
+tf.app.flags.DEFINE_boolean('isDebug',  False, 'debug flag')
 
 tf.app.flags.DEFINE_string('checkpoint_dir', '../data/checkpoint/', 'the checkpoint dir')
 tf.app.flags.DEFINE_string('train_data_dir', '../data/train/', 'the train dataset dir')
@@ -69,7 +69,7 @@ N = FLAGS.total_characters  # full connection layer
 #          [batch, in_height, in_width, in_channels]
 X = tf.placeholder(tf.float32, [None, FLAGS.image_size, FLAGS.image_size, FLAGS.channels])
 # correct answers will go here
-Y_ = tf.placeholder(tf.float32, [None, 10])
+Y_ = tf.placeholder(tf.float32, [None, FLAGS.total_characters])
 # The probability that each element is kept.
 pkeep = tf.placeholder(tf.float32)
 
@@ -216,16 +216,20 @@ def model_network():
 
     # Logits Layer
     ylogits = tf.matmul(dropout1, W4) + B4
-    y = tf.nn.softmax(ylogits)
+    # y = tf.nn.softmax(ylogits)
 
     # cross-entropy loss function (= -sum(Y_i * log(Yi)) ), normalised for batches of 100  images
     # TODO: Got following exception:
     #     ValueError: Rank mismatch: Rank of labels (received 2) should equal rank of logits minus 1 (received 2).
-    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y, labels=Y_)
+
+    print(ylogits)
+    print(Y_)
+
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=ylogits, labels=Y_)
     loss = tf.reduce_mean(loss)*100
 
     # accuracy of the trained model, between 0 (worst) and 1 (best)
-    correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(Y_, 1))
+    correct_prediction = tf.equal(tf.argmax(ylogits, 1), tf.argmax(Y_, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     # training step, the learning rate is a placeholder
