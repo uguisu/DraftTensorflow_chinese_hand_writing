@@ -10,6 +10,7 @@ import os
 import logging
 import datetime
 import random
+import time
 import tensorflow as tf
 
 # ====================================
@@ -48,6 +49,7 @@ tf.app.flags.DEFINE_integer('batch_size',        128, 'batch size')
 tf.app.flags.DEFINE_integer('gpu_model',           0, 'gpu model')
 # tf.app.flags.DEFINE_integer('total_characters', 3754, 'total characters')
 tf.app.flags.DEFINE_integer('total_characters',    3, 'total characters')
+tf.app.flags.DEFINE_integer('max_steps',       16002, 'the max training steps ')
 tf.app.flags.DEFINE_float('learn_rate',          0.1, 'learn rate')
 tf.app.flags.DEFINE_float('drop_keep',          0.75, 'drop keep')
 
@@ -193,6 +195,8 @@ def model_network():
     relu1 = tf.nn.relu(bias1)
 
     # Pooling Layer #1
+    # TODO: Got following error:
+    #     ValueError: Attr 'ksize' of 'MaxPool' Op passed list of length 2 less than minimum 4.
     pool1 = tf.nn.max_pool(relu1, [2, 2], strides=[1, stride, stride, 1], padding='SAME')
 
     # Convolutional Layer #2
@@ -226,10 +230,16 @@ def model_network():
     # training step, the learning rate is a placeholder
     train_step = tf.train.AdamOptimizer(FLAGS.learn_rate).minimize(loss)
 
+    global_step = tf.get_variable("step", [], initializer=tf.constant_initializer(0.0), trainable=False)
+
     return {
+        "X": X,
+        "Y_": Y_,
+        "pkeep": pkeep,
         "loss": loss,
         "accuracy": accuracy,
-        "train_step": train_step
+        "train_step": train_step,
+        "global_step": global_step
     }
 
 # Train
@@ -266,13 +276,33 @@ def train():
         # 3) Do not use GPU
         config = None
 
+    model_net = model_network()
+
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         coord = tf.train.Coordinator()
-
-        # https://tensorflow.google.cn/api_docs/python/tf/train/start_queue_runners
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
+        try:
+            while not coord.should_stop():
+                start_time = time.time()
+
+                loss, accuracy, train_step, global_step = sess.run([model_net['loss'],
+                                                                   model_net['accuracy'],
+                                                                   model_net['train_step'],
+                                                                   model_net['global_step']],
+                                                                  feed_dict={model_net['X']: train_image_batch,
+                                                                             model_net['Y_']: train_label_batch,
+                                                                             model_net['pkeep']: FLAGS.drop_keep})
+                end_time = time.time()
+                if global_step > FLAGS.max_steps:
+                    break
+                else:
+                    logger.info("the step {0} takes {1} loss {2}".format(global_step, end_time - start_time, loss))
+        except tf.errors.OutOfRangeError:
+            logger.info('==================Train Finished================')
+        finally:
+            coord.request_stop()
         coord.join(threads)
 
 
@@ -288,6 +318,7 @@ def output_default_info():
     logger.info("\tbatch size        : " + str(FLAGS.batch_size))
     logger.info("\tgpu model         : " + str(FLAGS.gpu_model))
     logger.info("\ttotal characters  : " + str(FLAGS.total_characters))
+    logger.info("\tmax steps         : " + str(FLAGS.max_steps))
     logger.info("\tlearn rate        : " + str(FLAGS.learn_rate))
     logger.info("\tdrop keep         : " + str(FLAGS.drop_keep))
 
