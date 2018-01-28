@@ -207,29 +207,30 @@ def model_network():
     # Full Layer
     # reshape the output from the third convolution for the fully connected layer
     pool2_flat = tf.reshape(relu1, shape=[-1, 32 * 32 * L])
-    # TODO
-    # dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
     fc1 = tf.matmul(pool2_flat, W3) + B3
     relu3 = tf.nn.relu(fc1)
     dropout1 = tf.nn.dropout(relu3, pkeep)
 
     # Logits Layer
-    Ylogits = tf.matmul(dropout1, W4) + B4
-    Y = tf.nn.softmax(Ylogits)
+    ylogits = tf.matmul(dropout1, W4) + B4
+    y = tf.nn.softmax(ylogits)
 
     # cross-entropy loss function (= -sum(Y_i * log(Yi)) ), normalised for batches of 100  images
-    # TensorFlow provides the softmax_cross_entropy_with_logits function to avoid numerical stability
-    # problems with log(0) which is NaN
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=Ylogits, labels=Y_)
-    cross_entropy = tf.reduce_mean(cross_entropy)*100
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y, labels=Y_)
+    loss = tf.reduce_mean(loss)*100
 
     # accuracy of the trained model, between 0 (worst) and 1 (best)
-    correct_prediction = tf.equal(tf.argmax(Y, 1), tf.argmax(Y_, 1))
+    correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(Y_, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     # training step, the learning rate is a placeholder
-    train_step = tf.train.AdamOptimizer(FLAGS.learn_rate).minimize(cross_entropy)
+    train_step = tf.train.AdamOptimizer(FLAGS.learn_rate).minimize(loss)
 
+    return {
+        "loss": loss,
+        "accuracy": accuracy,
+        "train_step": train_step
+    }
 
 # Train
 def train():
