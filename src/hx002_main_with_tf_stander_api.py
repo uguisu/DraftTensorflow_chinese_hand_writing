@@ -185,6 +185,8 @@ def model_network():
 
     # tf.nn.conv2d()        -> https://tensorflow.google.cn/api_docs/python/tf/nn/conv2d
     # tf.nn.bias_add()      -> https://tensorflow.google.cn/api_docs/python/tf/nn/bias_add
+    # tf.nn.sparse_softmax_cross_entropy_with_logits()
+    #                     -> https://tensorflow.google.cn/api_docs/python/tf/nn/sparse_softmax_cross_entropy_with_logits
     # tf.truncated_normal() -> https://tensorflow.google.cn/api_docs/python/tf/truncated_normal
     # tf.random_normal()    -> https://tensorflow.google.cn/api_docs/python/tf/random_normal
 
@@ -216,16 +218,9 @@ def model_network():
 
     # Logits Layer
     ylogits = tf.matmul(dropout1, W4) + B4
-    # y = tf.nn.softmax(ylogits)
 
     # cross-entropy loss function (= -sum(Y_i * log(Yi)) ), normalised for batches of 100  images
-    # TODO: Got following exception:
-    #     ValueError: Rank mismatch: Rank of labels (received 2) should equal rank of logits minus 1 (received 2).
-
-    print(ylogits)
-    print(Y_)
-
-    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=ylogits, labels=Y_)
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=ylogits, labels=tf.argmax(Y_, 1))
     loss = tf.reduce_mean(loss)*100
 
     # accuracy of the trained model, between 0 (worst) and 1 (best)
