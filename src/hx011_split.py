@@ -195,11 +195,12 @@ def get_data(file_list, folder='png/'):
                 image_list += [resize_and_normalize_image(image)]
 
                 # debug
-                if len(label_list) % 10 == 0 and len(label_list) >= 10:
-                    logger.debug("Curent load: {}".format(label_list[len(label_list) - 10:]))
+                # if len(label_list) % 10 == 0 and len(label_list) >= 10:
+                #     logger.debug("Current load: {}".format(label_list[len(label_list) - 10:]))
 
-    if len(label_list) % 10 != 0 and len(label_list) >= 10:
-        logger.debug("Curent load: {}".format(label_list[int(len(label_list) % 10) * 10:]))
+    # debug
+    # if len(label_list) % 10 != 0 and len(label_list) >= 10:
+    #     logger.debug("Current load: {}".format(label_list[int(len(label_list) / 10) * 10:]))
 
     return image_list, label_list
 
@@ -210,6 +211,9 @@ if __name__ == '__main__':
     test_data_files = get_training_file_list(test_data_dir, target_data_amount=load_data_amount)
 
     training_img_list, training_label_list = get_data(training_data_files, '../data/png/train/')
+    logger.info("Load {} images for training.".format(len(training_label_list)))
+
     test_img_list, test_label_list = get_data(test_data_files, '../data/png/test/')
+    logger.info("Load {} images for test.".format(len(test_label_list)))
 
     logger.info("== Job finished ==")
