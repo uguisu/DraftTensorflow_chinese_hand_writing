@@ -6,8 +6,9 @@ import os
 import struct
 
 import numpy as np
-import skimage
 import PIL.Image as pilI
+# import skimage
+import scipy.misc
 
 # Declare Log system
 logger = logging.getLogger('[Learn Tensorflow] Chinese hand writing')
@@ -136,8 +137,13 @@ def resize_and_normalize_image(img):
     else:
         pad_dims = ((0, 0), (pad_size, pad_size))
     img = np.lib.pad(img, pad_dims, mode='constant', constant_values=255)
+
     # 缩放
-    img = skimage.transform.resize(img, (64 - 4*2, 64 - 4*2), mode='constant', anti_aliasing=True)
+    # python 3.7
+    # img = skimage.transform.resize(img, (64 - 4*2, 64 - 4*2), mode='constant', anti_aliasing=True)
+    # python 3.5
+    img = scipy.misc.imresize(img, (64 - 4*2, 64 - 4*2))
+
     img = np.lib.pad(img, ((4, 4), (4, 4)), mode='constant', constant_values=255)
     assert img.shape == (64, 64)
 
