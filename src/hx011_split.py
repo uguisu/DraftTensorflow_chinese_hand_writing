@@ -7,6 +7,7 @@ import struct
 
 import numpy as np
 import skimage
+import PIL.Image as pilI
 
 # Declare Log system
 logger = logging.getLogger('[Learn Tensorflow] Chinese hand writing')
@@ -146,8 +147,63 @@ def resize_and_normalize_image(img):
     return img
 
 
+def get_data(file_list, folder='png/'):
+    """
+    Get data
+    :param file_list: 数据文件列表
+    :param folder: 文件保存路径
+    :return: image_list, label_list
+    """
+    image_list = []
+    label_list = []
+    load_process = 0
+
+    for __fls in file_list:
+
+        load_process += 1
+        logger.debug("Processing: {:.2f}%".format(load_process / len(file_list) * 100))
+
+        with open(__fls, 'rb') as f:
+            for image, tagcode, word in read_binary_image_from_file_as_data_source(f):
+
+                label_list += [word]
+
+                # 检查当前读取的汉字是否已经存在于汉字字典中
+                if word not in dc:
+                    counter = "{:0>5}".format(str(len(dc)))
+                    # declare new Hanzi instance
+                    _Hanzi_object = HanZi(counter, 1)
+                    dc[word] = _Hanzi_object
+                else:
+                    _Hanzi_object = dc.get(word)
+
+                # create folder to write image
+                os.makedirs(folder + _Hanzi_object.folder_name, exist_ok=True)
+
+                im = pilI.fromarray(image)
+                im.convert('RGB').save(folder
+                                       + _Hanzi_object.folder_name + "/"
+                                       + str(_Hanzi_object.get_and_increase_index()) + '.png')
+
+                # 统一图像大小
+                image_list += [resize_and_normalize_image(image)]
+
+                # debug
+                if len(label_list) % 10 == 0 and len(label_list) >= 10:
+                    logger.debug("Curent load: {}".format(label_list[len(label_list) - 10:]))
+
+    if len(label_list) % 10 != 0 and len(label_list) >= 10:
+        logger.debug("Curent load: {}".format(label_list[int(len(label_list) % 10) * 10:]))
+
+    return image_list, label_list
+
+
 if __name__ == '__main__':
     logger.info("== Start ==")
     training_data_files = get_training_file_list(training_data_dir, target_data_amount=load_data_amount)
     test_data_files = get_training_file_list(test_data_dir, target_data_amount=load_data_amount)
 
+    training_img_list, training_label_list = get_data(training_data_files, '../data/png/train/')
+    test_img_list, test_label_list = get_data(test_data_files, '../data/png/test/')
+
+    logger.info("== Job finished ==")
