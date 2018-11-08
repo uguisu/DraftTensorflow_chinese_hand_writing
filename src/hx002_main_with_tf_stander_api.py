@@ -129,14 +129,14 @@ def get_data_file_list(train_dir='../data',
             random_range = global_random_range
 
         for _tmp_random in random_range:
-            sub_folder_name = "{:0>4}".format(str(_tmp_random))
+            sub_folder_name = "{:0>5}".format(str(_tmp_random))
             for file_list in os.listdir(train_dir + sub_folder_name):
                 images_list.append(train_dir + sub_folder_name + '/' + file_list)
                 label_list.append(_tmp_random)
     else:
         # use all data
         for _tmp_random in range(FLAGS.total_characters):
-            sub_folder_name = "{:0>4}".format(str(_tmp_random))
+            sub_folder_name = "{:0>5}".format(str(_tmp_random))
             for file_list in os.listdir(train_dir + sub_folder_name):
                 images_list.append(train_dir + sub_folder_name + '/' + file_list)
                 label_list.append(_tmp_random)
