@@ -10,6 +10,7 @@ import os
 import logging
 import datetime
 import random
+import time
 import tensorflow as tf
 
 # ====================================
@@ -36,7 +37,7 @@ logger.addHandler(ch)
 # =====================================
 # ======   Declare const value   ======
 # =====================================
-tf.app.flags.DEFINE_boolean('isDebug',  True, 'debug flag')
+tf.app.flags.DEFINE_boolean('isDebug',  False, 'debug flag')
 
 tf.app.flags.DEFINE_string('checkpoint_dir', '../data/checkpoint/', 'the checkpoint dir')
 tf.app.flags.DEFINE_string('train_data_dir', '../data/train/', 'the train dataset dir')
@@ -48,6 +49,9 @@ tf.app.flags.DEFINE_integer('batch_size',        128, 'batch size')
 tf.app.flags.DEFINE_integer('gpu_model',           0, 'gpu model')
 # tf.app.flags.DEFINE_integer('total_characters', 3754, 'total characters')
 tf.app.flags.DEFINE_integer('total_characters',    3, 'total characters')
+tf.app.flags.DEFINE_integer('max_steps',       16002, 'the max training steps ')
+tf.app.flags.DEFINE_float('learn_rate',          0.1, 'learn rate')
+tf.app.flags.DEFINE_float('drop_keep',          0.75, 'drop keep')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -56,7 +60,33 @@ FLAGS = tf.app.flags.FLAGS
 # =====================================
 global_random_range = []
 
-X = tf.placeholder(tf.int32, [FLAGS.total_characters, FLAGS.image_size, FLAGS.image_size, FLAGS.channels])
+K = 32    # 1 convolutional layer output depth
+L = 64    # 2 convolutional layer output depth
+M = 1024  # full connection layer
+N = FLAGS.total_characters  # full connection layer
+
+# input X: 64 x 64 grayscale images, the first dimension (None) will index the images in the mini-batch
+#          [batch, in_height, in_width, in_channels]
+X = tf.placeholder(tf.float32, [None, FLAGS.image_size, FLAGS.image_size, FLAGS.channels])
+# correct answers will go here
+Y_ = tf.placeholder(tf.float32, [None, FLAGS.total_characters])
+# The probability that each element is kept.
+pkeep = tf.placeholder(tf.float32)
+
+# filter W1 : 2 x 2 patch, 1 input channel, K output channels
+#             [filter_height, filter_width, in_channels, out_channels]
+W1 = tf.Variable(tf.truncated_normal([2, 2, FLAGS.channels, K], stddev=0.1))
+B1 = tf.Variable(tf.random_normal([K], stddev=0.1))
+# filter W2 : 2 x 2 patch, K input channel, L output channels
+#             [filter_height, filter_width, in_channels, out_channels]
+W2 = tf.Variable(tf.truncated_normal([2, 2, K, L], stddev=0.1))
+B2 = tf.Variable(tf.random_normal([L], stddev=0.1))
+
+W3 = tf.Variable(tf.truncated_normal([32 * 32 * L, M], stddev=0.1))
+B3 = tf.Variable(tf.zeros([M]))
+
+W4 = tf.Variable(tf.truncated_normal([M, N], stddev=0.1))
+B4 = tf.Variable(tf.zeros([N]))
 
 
 # Get data file list
@@ -151,6 +181,67 @@ def read_data_from_file(image_file_list,
     return image_batch, label_batch
 
 
+def model_network():
+
+    # tf.nn.conv2d()        -> https://tensorflow.google.cn/api_docs/python/tf/nn/conv2d
+    # tf.nn.bias_add()      -> https://tensorflow.google.cn/api_docs/python/tf/nn/bias_add
+    # tf.nn.sparse_softmax_cross_entropy_with_logits()
+    #                     -> https://tensorflow.google.cn/api_docs/python/tf/nn/sparse_softmax_cross_entropy_with_logits
+    # tf.truncated_normal() -> https://tensorflow.google.cn/api_docs/python/tf/truncated_normal
+    # tf.random_normal()    -> https://tensorflow.google.cn/api_docs/python/tf/random_normal
+
+    # Convolutional Layer #1
+    stride = 1  # output is 64x64
+    conv1 = tf.nn.conv2d(X, W1, strides=[1, stride, stride, 1], padding='SAME')
+    bias1 = tf.nn.bias_add(conv1, B1)
+    relu1 = tf.nn.relu(bias1)
+
+    # Pooling Layer #1
+    # [NOTICE] ksize: A 1-D int Tensor of 4 elements.
+    pool1 = tf.nn.max_pool(relu1, ksize=[1, 2, 2, 1], strides=[1, stride, stride, 1], padding='SAME')
+
+    # Convolutional Layer #2
+    stride = 1  # output is 32x32
+    conv2 = tf.nn.conv2d(pool1, W2, strides=[1, stride, stride, 1], padding='SAME')
+    bias2 = tf.nn.bias_add(conv2, B2)
+    relu2 = tf.nn.relu(bias2)
+
+    # Pooling Layer #2
+    pool2 = tf.nn.max_pool(relu2, ksize=[1, 2, 2, 1], strides=[1, stride, stride, 1], padding='SAME')
+
+    # Full Layer
+    # reshape the output from the third convolution for the fully connected layer
+    pool2_flat = tf.reshape(relu1, shape=[-1, 32 * 32 * L])
+    fc1 = tf.matmul(pool2_flat, W3) + B3
+    relu3 = tf.nn.relu(fc1)
+    dropout1 = tf.nn.dropout(relu3, pkeep)
+
+    # Logits Layer
+    ylogits = tf.matmul(dropout1, W4) + B4
+
+    # cross-entropy loss function (= -sum(Y_i * log(Yi)) ), normalised for batches of 100  images
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=ylogits, labels=tf.argmax(Y_, 1))
+    loss = tf.reduce_mean(loss)*100
+
+    # accuracy of the trained model, between 0 (worst) and 1 (best)
+    correct_prediction = tf.equal(tf.argmax(ylogits, 1), tf.argmax(Y_, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    # training step, the learning rate is a placeholder
+    train_step = tf.train.AdamOptimizer(FLAGS.learn_rate).minimize(loss)
+
+    global_step = tf.get_variable("step", [], initializer=tf.constant_initializer(0.0), trainable=False)
+
+    return {
+        "X": X,
+        "Y_": Y_,
+        "pkeep": pkeep,
+        "loss": loss,
+        "accuracy": accuracy,
+        "train_step": train_step,
+        "global_step": global_step
+    }
+
 # Train
 def train():
 
@@ -185,8 +276,34 @@ def train():
         # 3) Do not use GPU
         config = None
 
+    model_net = model_network()
+
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
+        try:
+            while not coord.should_stop():
+                start_time = time.time()
+
+                loss, accuracy, train_step, global_step = sess.run([model_net['loss'],
+                                                                   model_net['accuracy'],
+                                                                   model_net['train_step'],
+                                                                   model_net['global_step']],
+                                                                  feed_dict={model_net['X']: train_image_batch,
+                                                                             model_net['Y_']: train_label_batch,
+                                                                             model_net['pkeep']: FLAGS.drop_keep})
+                end_time = time.time()
+                if global_step > FLAGS.max_steps:
+                    break
+                else:
+                    logger.info("the step {0} takes {1} loss {2}".format(global_step, end_time - start_time, loss))
+        except tf.errors.OutOfRangeError:
+            logger.info('==================Train Finished================')
+        finally:
+            coord.request_stop()
+        coord.join(threads)
 
 
 # Output default information
@@ -201,6 +318,9 @@ def output_default_info():
     logger.info("\tbatch size        : " + str(FLAGS.batch_size))
     logger.info("\tgpu model         : " + str(FLAGS.gpu_model))
     logger.info("\ttotal characters  : " + str(FLAGS.total_characters))
+    logger.info("\tmax steps         : " + str(FLAGS.max_steps))
+    logger.info("\tlearn rate        : " + str(FLAGS.learn_rate))
+    logger.info("\tdrop keep         : " + str(FLAGS.drop_keep))
 
 
 if __name__ == "__main__":
