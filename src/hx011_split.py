@@ -210,10 +210,10 @@ if __name__ == '__main__':
     training_data_files = get_training_file_list(training_data_dir, target_data_amount=load_data_amount)
     test_data_files = get_training_file_list(test_data_dir, target_data_amount=load_data_amount)
 
-    training_img_list, training_label_list = get_data(training_data_files, '../data/png/train/')
+    training_img_list, training_label_list = get_data(training_data_files, '../data/train/')
     logger.info("Load {} images for training.".format(len(training_label_list)))
 
-    test_img_list, test_label_list = get_data(test_data_files, '../data/png/test/')
+    test_img_list, test_label_list = get_data(test_data_files, '../data/test/')
     logger.info("Load {} images for test.".format(len(test_label_list)))
 
     logger.info("== Job finished ==")
