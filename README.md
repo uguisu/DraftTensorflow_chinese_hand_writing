@@ -8,7 +8,6 @@ To learn and test tensorflow.
 
 - Python 3.6+
 - Python library:
-  - Tensorflow 1.4
-  - numpy 1.11.0
-  - os
-  - scipy 0.17.0
+  - Tensorflow 1.12.0
+  - scipy 1.2.0
+  - Pillow 5.4.1
