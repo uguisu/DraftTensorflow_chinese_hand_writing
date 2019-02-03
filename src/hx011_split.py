@@ -5,7 +5,7 @@ import logging
 import os
 import struct
 
-import PIL.Image as pilI
+import cv2
 import numpy as np
 
 from helpTool import HanZi, ImFilterPipeline
@@ -43,7 +43,7 @@ cim = ImFilterPipeline()
 pip_settings = cim.pipeline
 pip_settings["rotated"] = 1
 # pip_settings["gaussianBlur"] = 1
-pip_settings["gaussianBlur"] = 1
+pip_settings["resize"] = 1
 
 
 def get_training_file_list(train_dir='data',
@@ -107,9 +107,9 @@ def read_binary_image_from_file_as_data_source(file_handle):
         yield image, tagcode, word
 
 
-def resize_and_normalize_image(img):
+def image_improve(img):
     """
-    Resize image
+    Improve image
     :param img: image array
     :return: resized image array
     """
@@ -118,11 +118,12 @@ def resize_and_normalize_image(img):
     return processed_image
 
 
-def get_data(file_list, folder='png/'):
+def get_data(file_list, folder='png/', is_improve_image=False):
     """
     Get data
     :param file_list: 数据文件列表
     :param folder: 文件保存路径
+    :param is_improve_image: if improve image
     :return: image_list, label_list
     """
     image_list = []
@@ -148,16 +149,19 @@ def get_data(file_list, folder='png/'):
                 else:
                     _Hanzi_object = dc.get(word)
 
+                if not is_improve_image:
+                    # without image improve
+                    image_list = [image]
+                else:
+                    # improve image
+                    image_list = [image_improve(image)]
+
                 # create folder to write image
                 os.makedirs(folder + _Hanzi_object.folder_name, exist_ok=True)
 
-                im = pilI.fromarray(image)
-                im.convert('RGB').save(folder
-                                       + _Hanzi_object.folder_name + "/"
-                                       + str(_Hanzi_object.get_and_increase_index()) + '.png')
-
-                # 统一图像大小
-                image_list += [resize_and_normalize_image(image)]
+                for im in image_list:
+                    cv2.imwrite(folder + _Hanzi_object.folder_name + "/"
+                                       + str(_Hanzi_object.get_and_increase_index()) + '.png', im)
 
                 # debug
                 # if len(label_list) % 10 == 0 and len(label_list) >= 10:
@@ -175,7 +179,7 @@ if __name__ == '__main__':
     training_data_files = get_training_file_list(training_data_dir, target_data_amount=load_data_amount)
     test_data_files = get_training_file_list(test_data_dir, target_data_amount=load_data_amount)
 
-    training_img_list, training_label_list = get_data(training_data_files, base_dir + '/data/train/')
+    training_img_list, training_label_list = get_data(training_data_files, base_dir + '/data/train/', is_improve_image=True)
     logger.info("Load {} images for training.".format(len(training_label_list)))
 
     test_img_list, test_label_list = get_data(test_data_files, base_dir + '/data/test/')
