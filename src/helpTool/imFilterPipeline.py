@@ -2,7 +2,6 @@
 
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
 
 
 class ImFilterPipeline:
@@ -12,7 +11,8 @@ class ImFilterPipeline:
         self._pipeline = {
             "rotated": 0,
             "blur": 0,
-            "gaussianBlur": 0
+            "gaussianBlur": 0,
+            "resize": 0
         }
 
     @property
@@ -55,6 +55,9 @@ class ImFilterPipeline:
     def _gaussianBlur(self, image, ksize=(5, 5), sigmaX=0):
         return cv2.GaussianBlur(image, ksize, sigmaX)
 
+    def _resize(self, image, target_size=64):
+        return cv2.resize(image, (target_size, target_size))
+
     def filter(self, image):
 
         rtn = image
@@ -65,22 +68,8 @@ class ImFilterPipeline:
             rtn = self._blur(rtn)
         if self._pipeline["gaussianBlur"] == 1:
             rtn = self._gaussianBlur(rtn)
+        if self._pipeline["resize"] == 1:
+            rtn = self._resize(rtn)
 
         return rtn
-
-
-if __name__ == "__main__":
-    image = cv2.imread("../data/train/00000/1.png")
-
-    cim = ImFilterPipeline()
-    pip_settings = cim.pipeline
-    pip_settings["rotated"] = 1
-    # pip_settings["gaussianBlur"] = 1
-
-    processed_image = cim.filter(image)
-
-    # debug
-    plt.subplot(1, 2, 1), plt.imshow(image), plt.title("input")
-    plt.subplot(1, 2, 2), plt.imshow(processed_image), plt.title("output")
-    plt.show()
 
