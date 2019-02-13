@@ -45,6 +45,11 @@ pip_settings["rotated"] = 1
 # pip_settings["gaussianBlur"] = 1
 pip_settings["resize"] = 1
 
+# Declare image improve
+cim_resize = ImFilterPipeline()
+pip_resize_settings = cim_resize.pipeline
+pip_resize_settings["resize"] = 1
+
 
 def get_training_file_list(train_dir='data',
                            target_data_amount=1):
@@ -107,6 +112,17 @@ def read_binary_image_from_file_as_data_source(file_handle):
         yield image, tagcode, word
 
 
+def image_resize(img):
+    """
+    Resize image
+    :param img: image array
+    :return: resized image array
+    """
+    processed_image = cim_resize.filter(img)
+
+    return processed_image
+
+
 def image_improve(img):
     """
     Improve image
@@ -151,10 +167,10 @@ def get_data(file_list, folder='png/', is_improve_image=False):
 
                 if not is_improve_image:
                     # without image improve
-                    image_list = [image]
+                    image_list = [image_resize(image)]
                 else:
                     # improve image
-                    image_list = [image_improve(image)]
+                    image_list = [image_resize(image), image_improve(image)]
 
                 # create folder to write image
                 os.makedirs(folder + _Hanzi_object.folder_name, exist_ok=True)
