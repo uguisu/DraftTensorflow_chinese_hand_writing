@@ -10,3 +10,4 @@ To learn and test tensorflow.
 - Python library:
   - Tensorflow 1.12.0
   - opencv 4.0.0
+  - PyYaml 3.13
