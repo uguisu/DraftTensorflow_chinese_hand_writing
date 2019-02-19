@@ -58,6 +58,23 @@ tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop 
 FLAGS = tf.app.flags.FLAGS
 
 
+def get_estimator(run_config, params):
+    """
+    Return the model as a Tensorflow Estimator object
+    :param run_config: (RunConfig) Configuration for Estimator run.
+    :param params: (HParams) hyperparameters.
+    :return: (Estimator) Estimator object
+    """
+    return tf.estimator.Estimator(
+        # first-class function
+        model_fn=model_fn,
+        # HParams
+        params=params,
+        # Run Config
+        config=run_config
+    )
+
+
 def model_fn(feature, labels, mode, params):
     """
     Model function used in the estimator
