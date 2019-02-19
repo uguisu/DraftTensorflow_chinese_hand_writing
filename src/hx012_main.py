@@ -1,4 +1,5 @@
 # encoding: UTF-8
+import os
 import argparse
 import yaml
 import tensorflow as tf
@@ -54,6 +55,26 @@ tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop 
 FLAGS = tf.app.flags.FLAGS
 
 
+def get_data_file_list(data_dir):
+    """
+    Get data file list
+    :param data_dir: data full path
+    :return: images_list, labels_list
+    """
+    # image file list
+    images_list = []
+    # label list
+    labels_list = []
+
+    for _tmp_random in range(FLAGS.total_characters):
+        sub_folder_name = "{:0>5}".format(str(_tmp_random))
+        for file_list in os.listdir(data_dir + sub_folder_name):
+            images_list.append(data_dir + sub_folder_name + "/" + file_list)
+            labels_list.append(_tmp_random)
+
+    return images_list, labels_list
+
+
 def parse_file_to_image_tensor(filename, label):
     """
     Open image file and decode it to a JPEG-encoded image to a uint8 tensor.
@@ -73,7 +94,7 @@ def parse_file_to_image_tensor(filename, label):
     # This will convert to float values in [0, 1]
     image_t = tf.image.convert_image_dtype(image_t, tf.float32)
 
-    #  resize
+    # resize
     # [NOTICE] If dtype=tf.float32, you will got following error:
     #     ValueError: 'size' must be a 1-D int32 Tensor
     # TODO following command an be skipped?
