@@ -58,6 +58,54 @@ tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop 
 FLAGS = tf.app.flags.FLAGS
 
 
+def run_experiment(argv=None):
+    """
+    Run the training experiment.
+    """
+    # Define model parameters
+    params = tf.contrib.training.HParams(
+        learning_rate=FLAGS.learning_rate,
+        # n_classes = 10
+        training_step=5000,
+        min_eval_frequency=100
+    )
+
+    # Set the run_config and the directory to save the model and stats
+    run_config = tf.estimator.RunConfig(
+        model_dir=FLAGS.model_dir,
+        save_checkpoints_steps=params.min_eval_frequency
+    )
+
+    # Define the classifier
+    estimator = get_estimator(run_config, params)
+
+    # Setup data loaders
+    train_input_fn = get_train_inputs(batch_size=128, training_data=FLAGS.train_data_dir)
+    eval_input_fn = get_test_inputs(batch_size=10, test_data=FLAGS.test_data_dir)
+
+    train_spec = tf.estimator.TrainSpec(
+        input_fn=train_input_fn,
+        max_steps=1000,
+        hooks=None
+    )
+    eval_spec = tf.estimator.EvalSpec(
+        input_fn=eval_input_fn,
+        steps=100,
+        hooks=None
+    )
+
+    # Run process
+    tf.estimator.train_and_evaluate(
+        estimator=estimator,
+        # All training related specification is held in train_spec,
+        # including training input_fn and training max steps, etc.
+        train_spec=train_spec,
+        # All evaluation and export related specification is held in eval_spec,
+        # including evaluation input_fn, steps, etc.
+        eval_spec=eval_spec
+    )
+
+
 def get_estimator(run_config, params):
     """
     Return the model as a Tensorflow Estimator object
@@ -288,3 +336,7 @@ def parse_file_to_image_tensor(filename, label):
 
 if __name__ == '__main__':
     print(tf.__version__)
+
+    tf.app.run(
+        main=run_experiment
+    )
