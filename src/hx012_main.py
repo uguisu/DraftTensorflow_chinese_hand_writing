@@ -4,6 +4,8 @@ import argparse
 import yaml
 import tensorflow as tf
 
+from tensorflow.contrib import slim
+
 # ====================================
 # ======   Define Log system    ======
 # ====================================
@@ -53,6 +55,33 @@ tf.app.flags.DEFINE_float('learning_rate', yml_settings['learning_rate'], 'learn
 tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop keep')
 
 FLAGS = tf.app.flags.FLAGS
+
+
+def architecture(inputs, is_training, scope='HandWritingConvNet'):
+    """
+    Return the output operation following the network architecture
+    :param inputs: Input tensor
+    :param is_training: True, if in training mode
+    :param scope: Name of the scope of the architecture
+    :return: Neural Network
+    """
+    with tf.variable_scope(scope):
+        with slim.arg_scope(
+                [slim.conv2d, slim.fully_connected],
+                weights_initializer=tf.contrib.layers.xavier_initializer()):
+            net = slim.conv2d(inputs, 64, [2, 2], padding='SAME', scope='conv1')
+            net = slim.max_pool2d(net, [2, 2], stride=2, scope='pool2')
+            net = slim.conv2d(net, 128, [2, 2], padding='SAME', scope='conv3')
+            net = slim.max_pool2d(net, [2, 2], stride=2, scope='pool4')
+            net = tf.reshape(net, [-1, 16 * 16 * 128])
+            net = slim.fully_connected(net, 3755 * 2, scope='fn5')
+            net = slim.dropout(net, is_training=is_training, scope='dropout6')
+            net = slim.fully_connected(net, 3755 * 2, scope='fn7')
+            net = slim.dropout(net, is_training=is_training, scope='dropout8')
+            net = slim.fully_connected(net, 3755, scope='output', activation_fn=None)
+
+    # Take care of how many classes of your result. In this case, the final result will be 3755.
+    return net
 
 
 def get_train_inputs(batch_size, training_data):
