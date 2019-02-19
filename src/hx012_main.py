@@ -72,6 +72,22 @@ def get_train_op_fn(loss, params):
     )
 
 
+def get_eval_metric_ops(labels, predictions):
+    """
+    Return a dict of the evaluation Ops.
+    :param labels: (Tensor) Labels tensor for training and evaluation.
+    :param predictions: (Tensor) Predictions Tensor.
+    :return: Dict of metric results keyed by name.
+    """
+    return {
+        'Accuracy': tf.metrics.accuracy(
+            labels=labels,
+            predictions=predictions,
+            name='accuracy'
+        )
+    }
+
+
 def architecture(inputs, is_training, scope='HandWritingConvNet'):
     """
     Return the output operation following the network architecture
