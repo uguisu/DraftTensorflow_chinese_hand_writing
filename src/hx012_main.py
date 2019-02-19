@@ -55,6 +55,68 @@ tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop 
 FLAGS = tf.app.flags.FLAGS
 
 
+def get_train_inputs(batch_size, training_data):
+    """
+    Define the training input
+    :param batch_size: batch size
+    :param training_data: training data
+    :return: callable function
+    """
+
+    def train_inputs():
+        images, labels = get_data_file_list(training_data)
+
+        # Create a Dataset object whose elements are slices of the given tensors.
+        dataset = tf.data.Dataset.from_tensor_slices((images, labels))
+
+        # Infinite iterations
+        # 1) This transformation applies parse_file_to_image_tensor() to each element of this dataset,
+        # and returns a new dataset containing the transformed elements, in the same order as they
+        # appeared in the input.
+        dataset = dataset.map(parse_file_to_image_tensor, num_parallel_calls=4)
+        # 2) Repeates this dataset count times
+        dataset = dataset.repeat(None)
+        # 3) Randomly shuffles the elements of this dataset.
+        dataset = dataset.shuffle(buffer_size=10000)
+        # 4) Combines consecutive elements of this dataset into batches.
+        dataset = dataset.batch(batch_size)
+
+        return dataset
+
+    return train_inputs
+
+
+def get_test_inputs(batch_size, test_data):
+    """
+    Define the test input
+    :param batch_size: batch size
+    :param test_data: test data
+    :return: callable function
+    """
+
+    def test_inputs():
+        images, labels = get_data_file_list(test_data)
+
+        # Create a Dataset object whose elements are slices of the given tensors.
+        dataset = tf.data.Dataset.from_tensor_slices((images, labels))
+
+        # Infinite iterations
+        # 1) This transformation applies parse_file_to_image_tensor() to each element of this dataset,
+        # and returns a new dataset containing the transformed elements, in the same order as they
+        # appeared in the input.
+        dataset = dataset.map(parse_file_to_image_tensor, num_parallel_calls=4)
+        # 2) Repeates this dataset count times
+        dataset = dataset.repeat(None)
+        # 3) Randomly shuffles the elements of this dataset.
+        dataset = dataset.shuffle(buffer_size=10000)
+        # 4) Combines consecutive elements of this dataset into batches.
+        dataset = dataset.batch(batch_size)
+
+        return dataset
+
+    return test_inputs
+
+
 def get_data_file_list(data_dir):
     """
     Get data file list
