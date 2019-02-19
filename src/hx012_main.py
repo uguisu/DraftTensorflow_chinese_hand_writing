@@ -60,6 +60,14 @@ FLAGS = tf.app.flags.FLAGS
 def architecture(inputs, is_training, scope='HandWritingConvNet'):
     """
     Return the output operation following the network architecture
+
+    input => (?, 64, 64, 1)
+    conv1 => (?, 64, 64, 64)
+    pool2 => (?, 32, 32, 64)
+    conv3 => (?, 32, 32, 128)
+    pool4 => (?, 16, 16, 128)
+    resharp => (?, 32768)   32768 = 16*16*128
+
     :param inputs: Input tensor
     :param is_training: True, if in training mode
     :param scope: Name of the scope of the architecture
