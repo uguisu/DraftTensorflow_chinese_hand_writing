@@ -5,6 +5,7 @@ import yaml
 import tensorflow as tf
 
 from tensorflow.contrib import slim
+from tensorflow.contrib.learn import ModeKeys
 
 # ====================================
 # ======   Define Log system    ======
@@ -55,6 +56,40 @@ tf.app.flags.DEFINE_float('learning_rate', yml_settings['learning_rate'], 'learn
 tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop keep')
 
 FLAGS = tf.app.flags.FLAGS
+
+
+def model_fn(feature, labels, mode, params):
+    """
+    Model function used in the estimator
+    :param feature: (Tensor) Input features to the model.
+    :param labels: (Tensor)  Labels tensor for training and evaluation.
+    :param mode: (ModeKeys) Specifies if training, evaluation or prediction.
+    :param params: (HParams) Hyperparameters.
+    :return: (EstimatorSpec) Model to be run by Estimator.
+    """
+    is_training = mode == ModeKeys.TRAIN
+    # Define model's architecture
+    logits = architecture(feature, is_training=is_training)
+    predictions = tf.argmax(logits, axis=-1)
+    # Loss, training and eval operations are not needed during inference
+    loss = None
+    train_op = None
+    eval_metric_ops = {}
+    if mode != ModeKeys.INFER:
+        loss = tf.losses.sparse_softmax_cross_entropy(
+            labels=tf.cast(labels, tf.int32),
+            logits=logits
+        )
+        train_op = get_train_op_fn(loss, params)
+        eval_metric_ops = get_eval_metric_ops(labels, predictions)
+
+    return tf.estimator.EstimatorSpec(
+        mode=mode,
+        predictions=predictions,
+        loss=loss,
+        train_op=train_op,
+        eval_metric_ops=eval_metric_ops
+    )
 
 
 def get_train_op_fn(loss, params):
