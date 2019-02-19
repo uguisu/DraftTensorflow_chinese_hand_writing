@@ -1,0 +1,14 @@
+checkpoint_dir: /myWork/999_tmp/ai/data/handwrite/data/checkpoint/
+train_data_dir: /myWork/999_tmp/ai/data/handwrite/data/train/
+test_data_dir: /myWork/999_tmp/ai/data/handwrite/data/test/
+model_dir: /myWork/999_tmp/ai/data/handwrite/data/model/
+
+total_characters: 3755
+epoch: 1
+batch_size: 128
+dataset_buffer: 10000
+channels: 1
+image_size: 64
+
+learning_rate: 0.2
+drop_keep: 0.5
