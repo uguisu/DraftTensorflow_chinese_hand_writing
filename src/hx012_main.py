@@ -57,6 +57,21 @@ tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop 
 FLAGS = tf.app.flags.FLAGS
 
 
+def get_train_op_fn(loss, params):
+    """
+    Get the training Op
+    :param loss: Scalar Tensor that represents the loss function. (Tensor)
+    :param params: Hyperparameters (needs to have 'learning_rate').  (HParams)
+    :return: Training Op
+    """
+    return tf.contrib.layers.optimize_loss(
+        loss=loss,
+        global_step=tf.train.get_global_step(),
+        optimizer=tf.train.AdamOptimizer,
+        learning_rate=params.learning_rate
+    )
+
+
 def architecture(inputs, is_training, scope='HandWritingConvNet'):
     """
     Return the output operation following the network architecture
