@@ -40,20 +40,21 @@ except FileNotFoundError:
 # ====================================
 # ======   Define const value   ======
 # ====================================
-tf.app.flags.DEFINE_string('checkpoint_dir', yml_settings['checkpoint_dir'], 'the checkpoint dir')
+# tf.app.flags.DEFINE_string('checkpoint_dir', yml_settings['checkpoint_dir'], 'the checkpoint dir')
 tf.app.flags.DEFINE_string('train_data_dir', yml_settings['train_data_dir'], 'the train data dir')
 tf.app.flags.DEFINE_string('test_data_dir',  yml_settings['test_data_dir'],  'the test data dir')
 tf.app.flags.DEFINE_string('model_dir',      yml_settings['model_dir'],      'the model dir')
 
 tf.app.flags.DEFINE_integer('total_characters', yml_settings['total_characters'], 'total characters')
-tf.app.flags.DEFINE_integer('epoch',            yml_settings['epoch'],            'epoch')
+# tf.app.flags.DEFINE_integer('epoch',            yml_settings['epoch'],            'epoch')
 tf.app.flags.DEFINE_integer('batch_size',       yml_settings['batch_size'],       'batch size')
 tf.app.flags.DEFINE_integer('dataset_buffer',   yml_settings['dataset_buffer'],   'dataset buffer size')
 tf.app.flags.DEFINE_integer('channels',         yml_settings['channels'],         'channels')
 tf.app.flags.DEFINE_integer('image_size',       yml_settings['image_size'],       'image size')
+tf.app.flags.DEFINE_integer('max_steps',        yml_settings['max_steps'],        'training max step')
 
 tf.app.flags.DEFINE_float('learning_rate', yml_settings['learning_rate'], 'learning rate')
-tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop keep')
+# tf.app.flags.DEFINE_float('drop_keep',     yml_settings['drop_keep'],     'drop keep')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -66,7 +67,7 @@ def run_experiment(argv=None):
     params = tf.contrib.training.HParams(
         learning_rate=FLAGS.learning_rate,
         # n_classes = 10
-        training_step=5000,
+        # training_step=5000,
         min_eval_frequency=100
     )
 
@@ -80,12 +81,12 @@ def run_experiment(argv=None):
     estimator = get_estimator(run_config, params)
 
     # Setup data loaders
-    train_input_fn = get_train_inputs(batch_size=128, training_data=FLAGS.train_data_dir)
-    eval_input_fn = get_test_inputs(batch_size=10, test_data=FLAGS.test_data_dir)
+    train_input_fn = get_train_inputs(batch_size=FLAGS.batch_size, training_data=FLAGS.train_data_dir)
+    eval_input_fn = get_test_inputs(batch_size=FLAGS.batch_size, test_data=FLAGS.test_data_dir)
 
     train_spec = tf.estimator.TrainSpec(
         input_fn=train_input_fn,
-        max_steps=1000,
+        max_steps=FLAGS.max_steps,
         hooks=None
     )
     eval_spec = tf.estimator.EvalSpec(
@@ -160,8 +161,8 @@ def model_fn(feature, labels, mode, params):
 def get_train_op_fn(loss, params):
     """
     Get the training Op
-    :param loss: Scalar Tensor that represents the loss function. (Tensor)
-    :param params: Hyperparameters (needs to have 'learning_rate').  (HParams)
+    :param loss: (Tensor) Scalar Tensor that represents the loss function.
+    :param params: (HParams) Hyperparameters (needs to have 'learning_rate').
     :return: Training Op
     """
     return tf.contrib.layers.optimize_loss(
@@ -199,9 +200,9 @@ def architecture(inputs, is_training, scope='HandWritingConvNet'):
     pool4 => (?, 16, 16, 128)
     resharp => (?, 32768)   32768 = 16*16*128
 
-    :param inputs: Input tensor
-    :param is_training: True, if in training mode
-    :param scope: Name of the scope of the architecture
+    :param inputs: (Tensor) Input tensor
+    :param is_training: (boolean) True, if in training mode
+    :param scope: (str) Name of the scope of the architecture
     :return: Neural Network
     """
     with tf.variable_scope(scope):
@@ -226,8 +227,8 @@ def architecture(inputs, is_training, scope='HandWritingConvNet'):
 def get_train_inputs(batch_size, training_data):
     """
     Define the training input
-    :param batch_size: batch size
-    :param training_data: training data
+    :param batch_size: (int) batch size
+    :param training_data: (str) training data
     :return: callable function
     """
 
@@ -245,7 +246,7 @@ def get_train_inputs(batch_size, training_data):
         # 2) Repeates this dataset count times
         dataset = dataset.repeat(None)
         # 3) Randomly shuffles the elements of this dataset.
-        dataset = dataset.shuffle(buffer_size=10000)
+        dataset = dataset.shuffle(buffer_size=FLAGS.dataset_buffer)
         # 4) Combines consecutive elements of this dataset into batches.
         dataset = dataset.batch(batch_size)
 
@@ -257,8 +258,8 @@ def get_train_inputs(batch_size, training_data):
 def get_test_inputs(batch_size, test_data):
     """
     Define the test input
-    :param batch_size: batch size
-    :param test_data: test data
+    :param batch_size: (int) batch size
+    :param test_data: (str) test data
     :return: callable function
     """
 
@@ -276,7 +277,7 @@ def get_test_inputs(batch_size, test_data):
         # 2) Repeates this dataset count times
         dataset = dataset.repeat(None)
         # 3) Randomly shuffles the elements of this dataset.
-        dataset = dataset.shuffle(buffer_size=10000)
+        dataset = dataset.shuffle(buffer_size=FLAGS.dataset_buffer)
         # 4) Combines consecutive elements of this dataset into batches.
         dataset = dataset.batch(batch_size)
 
@@ -288,7 +289,7 @@ def get_test_inputs(batch_size, test_data):
 def get_data_file_list(data_dir):
     """
     Get data file list
-    :param data_dir: data full path
+    :param data_dir: (str) data full path
     :return: images_list, labels_list
     """
     # image file list
@@ -308,8 +309,8 @@ def get_data_file_list(data_dir):
 def parse_file_to_image_tensor(filename, label):
     """
     Open image file and decode it to a JPEG-encoded image to a uint8 tensor.
-    :param filename: image file name
-    :param label: label
+    :param filename: (str) image file name
+    :param label: (str) label
     :return: image, label
     """
     label_t = tf.convert_to_tensor(label, dtype=tf.int32)

@@ -9,6 +9,7 @@ batch_size: 128
 dataset_buffer: 10000
 channels: 1
 image_size: 64
+max_steps: 1000
 
 learning_rate: 0.2
 drop_keep: 0.5
